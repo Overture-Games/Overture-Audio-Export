@@ -20,7 +20,7 @@ namespace Overture.Export
                 BitsPerSample = bitsPerSample;
             }
 
-            public static Options Default => new(44100, 2, 16);
+            public static Options Default => new(AudioSettings.outputSampleRate, 2, 16);
         }
 
         [Serializable]
