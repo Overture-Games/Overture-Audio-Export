@@ -91,6 +91,7 @@ namespace Overture.Export
             byte[] fileData = File.ReadAllBytes(path);
             string base64Audio = Convert.ToBase64String(fileData);
             Debug.Log($"File size: {fileData.Length} bytes, Base64 length: {base64Audio.Length}");
+            Debug.Log($"Raw data: {base64Audio}");
 
             var songData = new Req_SaveData()
             {
@@ -129,6 +130,11 @@ namespace Overture.Export
 #else
             Debug.Log($"DAW EXPORT SAVED (Editor/Standalone): File is at: {path}");
             EditorUtility.RevealInFinder(path);
+
+            byte[] fileData = File.ReadAllBytes(path);
+            string base64Audio = Convert.ToBase64String(fileData);
+            Debug.Log($"File size: {fileData.Length} bytes, Base64 length: {base64Audio.Length}");
+            Debug.Log($"Raw data: {base64Audio}");
 
             OnPlatformUploadResult(JsonConvert.SerializeObject(new PlatformUploadResult
             {
