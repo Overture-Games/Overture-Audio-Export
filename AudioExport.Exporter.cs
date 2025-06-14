@@ -31,9 +31,9 @@ namespace Overture.Export
             public string PathOrError { get; set; }
         }
 
-        public static async Awaitable<ExportResult> ToFileAsync(AudioExport audioExportData)
+        public static async Awaitable<ExportResult> ToFileAsync(AudioExport export)
         {
-            if (audioExportData == null)
+            if (export == null)
             {
                 Debug.LogError("AudioFileExporter: AudioExport data is null. Cannot export.");
                 return new ExportResult { Success = false, PathOrError = "AudioExport data was null." };
@@ -42,7 +42,7 @@ namespace Overture.Export
             Debug.Log("AudioFileExporter: Starting audio export...");
 
             // Mix down all recorded clips into a float[] buffer
-            var masterBuffer = audioExportData.GetMixedAudioData(_options.TargetSampleRate, _options.TargetChannels);
+            var masterBuffer = export.GetMixedAudioData(export._options.TargetSampleRate, export._options.TargetChannels);
             Debug.Log($"AudioFileExporter: Mixed buffer length = {masterBuffer?.Length}");
 
             if (masterBuffer == null || masterBuffer.Length == 0)
@@ -56,10 +56,10 @@ namespace Overture.Export
             Debug.Log($"AudioFileExporter: Preparing to save WAV to: {filePath}");
 
             // Write header + samples in a coroutine
-            return await WriteWavFileAsync(filePath, masterBuffer, _options);
+            return await WriteWavFileAsync(export, filePath, masterBuffer);
         }
 
-        private static async Awaitable<ExportResult> WriteWavFileAsync(string filePath, float[] masterBuffer)
+        private static async Awaitable<ExportResult> WriteWavFileAsync(AudioExport export, string filePath, float[] masterBuffer)
         {
             FileStream fileStream = null;
             BinaryWriter writer = null;
@@ -70,9 +70,9 @@ namespace Overture.Export
                 fileStream = new FileStream(filePath, FileMode.Create);
                 writer = new BinaryWriter(fileStream);
 
-                int byteRate = _options.TargetSampleRate * _options.TargetChannels * (_options.BitsPerSample / 8);
-                short blockAlign = (short)(_options.TargetChannels * (_options.BitsPerSample / 8));
-                int dataSize = masterBuffer.Length * (_options.BitsPerSample / 8);
+                int byteRate = export._options.TargetSampleRate * export._options.TargetChannels * (export._options.BitsPerSample / 8);
+                short blockAlign = (short)(export._options.TargetChannels * (export._options.BitsPerSample / 8));
+                int dataSize = masterBuffer.Length * (export._options.BitsPerSample / 8);
                 int riffHeaderSize = 36 + dataSize;
 
                 // RIFF chunk
@@ -84,11 +84,11 @@ namespace Overture.Export
                 writer.Write(Encoding.ASCII.GetBytes("fmt "));
                 writer.Write(16); // Subchunk1Size = 16 for PCM
                 writer.Write((short)1); // AudioFormat = PCM (1)
-                writer.Write((short)_options.TargetChannels);
-                writer.Write(_options.TargetSampleRate);
+                writer.Write((short)export._options.TargetChannels);
+                writer.Write(export._options.TargetSampleRate);
                 writer.Write(byteRate);
                 writer.Write(blockAlign);
-                writer.Write((short)_options.BitsPerSample);
+                writer.Write((short)export._options.BitsPerSample);
 
                 // data subchunk
                 writer.Write(Encoding.ASCII.GetBytes("data"));
@@ -121,7 +121,7 @@ namespace Overture.Export
                 }
 
                 // Yield periodically to prevent the application from freezing
-                if (i > 0 && i % (_options.TargetSampleRate * _options.TargetChannels) == 0)
+                if (i > 0 && i % (export._options.TargetSampleRate * export._options.TargetChannels) == 0)
                     await Awaitable.NextFrameAsync();
             }
 
