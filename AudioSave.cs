@@ -6,9 +6,9 @@ using UnityEngine;
 using System;
 using System.Runtime.InteropServices;
 using Newtonsoft.Json;
+using System.IO;
 
 #if CAN_EXPORT
-using System.IO;
 using System.Linq;
 #endif
 
