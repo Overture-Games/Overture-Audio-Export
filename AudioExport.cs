@@ -13,6 +13,12 @@ namespace Overture.Export
         }
 
         private List<Event> _audioEvents = new();
+        private Options _options;
+
+        public AudioExport(Options? options)
+        {
+            _options = options ?? new(0, 2, 16);
+        }
 
         public void AddClip(AudioClip clip, float timeSeconds) => AddClip(clip, timeSeconds, new());
 
@@ -20,6 +26,9 @@ namespace Overture.Export
         {
             if (clip == null)
                 return;
+
+            if (_options.TargetSampleRate <= 0)
+                _options.TargetSampleRate = clip.frequency;
 
             var effectiveDuration = (envelope.Duration < 0) ? clip.length : envelope.Duration;
             envelope.Duration = Mathf.Max(0f, effectiveDuration);

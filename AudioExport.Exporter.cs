@@ -13,7 +13,7 @@ namespace Overture.Export
             public int TargetChannels { get; set; }
             public int BitsPerSample { get; set; }
 
-            public Options(int targetSampleRate = 44100, int targetChannels = 2, int bitsPerSample = 16)
+            public Options(int targetSampleRate = 0, int targetChannels = 2, int bitsPerSample = 16)
             {
                 TargetSampleRate = targetSampleRate;
                 TargetChannels = targetChannels;
@@ -21,6 +21,7 @@ namespace Overture.Export
             }
 
             public static Options Default => new(AudioSettings.outputSampleRate, 2, 16);
+            public static Options Infer => new(0, 2, 16);
         }
 
         [Serializable]
@@ -30,7 +31,7 @@ namespace Overture.Export
             public string PathOrError { get; set; }
         }
 
-        public static async Awaitable<ExportResult> ToFileAsync(AudioExport audioExportData, Options options)
+        public static async Awaitable<ExportResult> ToFileAsync(AudioExport audioExportData)
         {
             if (audioExportData == null)
             {
@@ -41,7 +42,7 @@ namespace Overture.Export
             Debug.Log("AudioFileExporter: Starting audio export...");
 
             // Mix down all recorded clips into a float[] buffer
-            var masterBuffer = audioExportData.GetMixedAudioData(options.TargetSampleRate, options.TargetChannels);
+            var masterBuffer = audioExportData.GetMixedAudioData(_options.TargetSampleRate, _options.TargetChannels);
             Debug.Log($"AudioFileExporter: Mixed buffer length = {masterBuffer?.Length}");
 
             if (masterBuffer == null || masterBuffer.Length == 0)
@@ -55,10 +56,10 @@ namespace Overture.Export
             Debug.Log($"AudioFileExporter: Preparing to save WAV to: {filePath}");
 
             // Write header + samples in a coroutine
-            return await WriteWavFileAsync(filePath, masterBuffer, options);
+            return await WriteWavFileAsync(filePath, masterBuffer, _options);
         }
 
-        private static async Awaitable<ExportResult> WriteWavFileAsync(string filePath, float[] masterBuffer, Options options)
+        private static async Awaitable<ExportResult> WriteWavFileAsync(string filePath, float[] masterBuffer)
         {
             FileStream fileStream = null;
             BinaryWriter writer = null;
@@ -69,9 +70,9 @@ namespace Overture.Export
                 fileStream = new FileStream(filePath, FileMode.Create);
                 writer = new BinaryWriter(fileStream);
 
-                int byteRate = options.TargetSampleRate * options.TargetChannels * (options.BitsPerSample / 8);
-                short blockAlign = (short)(options.TargetChannels * (options.BitsPerSample / 8));
-                int dataSize = masterBuffer.Length * (options.BitsPerSample / 8);
+                int byteRate = _options.TargetSampleRate * _options.TargetChannels * (_options.BitsPerSample / 8);
+                short blockAlign = (short)(_options.TargetChannels * (_options.BitsPerSample / 8));
+                int dataSize = masterBuffer.Length * (_options.BitsPerSample / 8);
                 int riffHeaderSize = 36 + dataSize;
 
                 // RIFF chunk
@@ -83,11 +84,11 @@ namespace Overture.Export
                 writer.Write(Encoding.ASCII.GetBytes("fmt "));
                 writer.Write(16); // Subchunk1Size = 16 for PCM
                 writer.Write((short)1); // AudioFormat = PCM (1)
-                writer.Write((short)options.TargetChannels);
-                writer.Write(options.TargetSampleRate);
+                writer.Write((short)_options.TargetChannels);
+                writer.Write(_options.TargetSampleRate);
                 writer.Write(byteRate);
                 writer.Write(blockAlign);
-                writer.Write((short)options.BitsPerSample);
+                writer.Write((short)_options.BitsPerSample);
 
                 // data subchunk
                 writer.Write(Encoding.ASCII.GetBytes("data"));
@@ -120,7 +121,7 @@ namespace Overture.Export
                 }
 
                 // Yield periodically to prevent the application from freezing
-                if (i > 0 && i % (options.TargetSampleRate * options.TargetChannels) == 0)
+                if (i > 0 && i % (_options.TargetSampleRate * _options.TargetChannels) == 0)
                     await Awaitable.NextFrameAsync();
             }
 
