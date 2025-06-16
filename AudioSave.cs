@@ -74,7 +74,14 @@ namespace Overture.Export
             _listener = new GameObject("Audio Save Listener").AddComponent<AudioSaveListener>();
         }
 
-        public static async Awaitable HandleFileAsync(string path, Config options)
+        public static async Awaitable<PlatformUploadResult> HandleFileAsync(string path, Config config, Action<PlatformUploadResult> callback)
+        {
+            var result = await HandleFileAsync(path, config);
+            callback?.Invoke(result);
+            return result; 
+        }
+
+        public static async Awaitable<PlatformUploadResult> HandleFileAsync(string path, Config config)
         {
             if (!IsInitialized)
                 Initialize();
@@ -95,11 +102,11 @@ namespace Overture.Export
 
             var songData = new Req_SaveData()
             {
-                title = GenerateFileName(options.Title),
-                gameId = options.GameId,
-                tags = options.Tags.Concat(new[] { options.GameId }).ToArray(),
-                bpm = options.Bpm,
-                description = options.Description,
+                title = GenerateFileName(config.Title),
+                gameId = config.GameId,
+                tags = config.Tags.Concat(new[] { config.GameId }).ToArray(),
+                bpm = config.Bpm,
+                description = config.Description,
 
                 audioData = base64Audio,
                 format = "wav",
@@ -130,7 +137,18 @@ namespace Overture.Export
             while (_listener.IsAwaiting)
                 await Awaitable.NextFrameAsync();
 
-            OnPlatformUploadResult(_listener.UploadResultJson);
+            PlatformUploadResult res;
+            try
+            {
+                res = JsonConvert.DeserializeObject<PlatformUploadResult>(_listener.UploadResultJson);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error deserializing upload result: {e.Message} - Raw Json: {_listener.UploadResultJson}");
+                res = new PlatformUploadResult { Success = false, Message = "Error deserializing upload result. Check console for details." };
+            }
+
+            OnPlatformUploadResult(res);
 #else
             Debug.Log($"DAW EXPORT SAVED (Editor/Standalone): File is at: {path}");
             EditorUtility.RevealInFinder(path);
@@ -140,31 +158,25 @@ namespace Overture.Export
             Debug.Log($"File size: {fileData.Length} bytes, Base64 length: {base64Audio.Length}");
             Debug.Log($"Raw data: {base64Audio}");
 
-            OnPlatformUploadResult(JsonConvert.SerializeObject(new PlatformUploadResult
+            var res = JsonConvert.SerializeObject(new PlatformUploadResult
             {
                 Success = true,
                 Message = $"File saved locally to {path}",
                 SongId = "local-save-editor-id"
-            }));
+            });
+            OnPlatformUploadResult(res);
 
             await Awaitable.EndOfFrameAsync();
+            return res;
 #endif
         }
 
-        public static void OnPlatformUploadResult(string resultJson)
+        public static void OnPlatformUploadResult(PlatformUploadResult result)
         {
-            try
-            {
-                var result = JsonConvert.DeserializeObject<PlatformUploadResult>(resultJson);
-                if (result.Success)
-                    Debug.Log($"PLATFORM RESULT: {result.Message} | Song ID: {result.SongId}");
-                else
-                    Debug.LogError($"PLATFORM RESULT: {result.Message}");
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"Error parsing platform upload result: {e.Message}");
-            }
+            if (result.Success)
+                Debug.Log($"PLATFORM RESULT: {result.Message} | Song ID: {result.SongId}");
+            else
+                Debug.LogError($"PLATFORM RESULT: {result.Message}");
         }
 
         public static string GenerateFileName(string prefix)

@@ -31,6 +31,13 @@ namespace Overture.Export
             public string PathOrError { get; set; }
         }
 
+        public static async Awaitable<ExportResult> ToFileAsync(AudioExport export, Action<ExportResult> callback)
+        {
+            var result = await ToFileAsync(export);
+            callback?.Invoke(result);
+            return result;
+        }
+
         public static async Awaitable<ExportResult> ToFileAsync(AudioExport export)
         {
             if (export == null)
