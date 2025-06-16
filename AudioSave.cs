@@ -158,12 +158,12 @@ namespace Overture.Export
             Debug.Log($"File size: {fileData.Length} bytes, Base64 length: {base64Audio.Length}");
             Debug.Log($"Raw data: {base64Audio}");
 
-            var res = JsonConvert.SerializeObject(new PlatformUploadResult
+            var res = new PlatformUploadResult
             {
                 Success = true,
                 Message = $"File saved locally to {path}",
                 SongId = "local-save-editor-id"
-            });
+            };
             OnPlatformUploadResult(res);
 
             await Awaitable.EndOfFrameAsync();
