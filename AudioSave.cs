@@ -130,7 +130,7 @@ namespace Overture.Export
             while (_listener.IsAwaiting)
                 await Awaitable.NextFrameAsync();
 
-            OnPlatformUploadResult(_listener.uploadResultJson);
+            OnPlatformUploadResult(_listener.UploadResultJson);
 #else
             Debug.Log($"DAW EXPORT SAVED (Editor/Standalone): File is at: {path}");
             EditorUtility.RevealInFinder(path);
