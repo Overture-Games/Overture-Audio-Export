@@ -1,6 +1,6 @@
-#if UNITY_WEBGL && !UNITY_EDITOR
+// #if UNITY_WEBGL && !UNITY_EDITOR
 #define CAN_EXPORT
-#endif
+// #endif
 
 using UnityEngine;
 using System;
@@ -92,7 +92,7 @@ namespace Overture.Export
             if (!File.Exists(path))
             {
                 Debug.LogError($"File not found for platform upload: {path}");
-                return;
+                return null;
             }
 
             byte[] fileData = File.ReadAllBytes(path);
@@ -120,7 +120,7 @@ namespace Overture.Export
             var songDataJson = JsonConvert.SerializeObject(songData);
 
             await Awaitable.WaitForSecondsAsync(1);
-            
+
             _listener.IsAwaiting = true;
             SaveSong(songDataJson, _listener.name);
 
@@ -149,6 +149,7 @@ namespace Overture.Export
             }
 
             OnPlatformUploadResult(res);
+            return res;
 #else
             Debug.Log($"DAW EXPORT SAVED (Editor/Standalone): File is at: {path}");
             EditorUtility.RevealInFinder(path);
