@@ -15,15 +15,12 @@ namespace Overture.Export
         private List<Event> _audioEvents = new();
         private Options _options;
 
-        public AudioExport(Options? options)
-        {
-            _options = options ?? new(0, 2, 16);
-        }
+        public AudioExport(Options options = null) => _options = options ?? Options.Infer;
 
-        public void AddClip(AudioClip clip, float timeSeconds) => AddClip(clip, timeSeconds, new());
-
-        public void AddClip(AudioClip clip, float timeSeconds, Envelope envelope)
+        public void AddClip(AudioClip clip, float timeSeconds, Envelope envelope = null)
         {
+            envelope ??= Envelope.Full();
+
             if (clip == null)
                 return;
 

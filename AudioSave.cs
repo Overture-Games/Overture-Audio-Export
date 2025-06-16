@@ -45,7 +45,7 @@ namespace Overture.Export
             [JsonProperty("songId")] public string SongId { get; set; }
         }
 
-        public struct Options
+        public class Config
         {
             public string Title { get; set; }
             public string GameId { get; set; }
@@ -53,7 +53,7 @@ namespace Overture.Export
             public string[] Tags { get; set; }
             public string Description { get; set; }
 
-            public Options(string title, string gameId, int bpm, string[] tags = default, string description = default)
+            public Config(string title, string gameId, int bpm, string[] tags = default, string description = default)
             {
                 Title = title;
                 GameId = gameId;
@@ -74,7 +74,7 @@ namespace Overture.Export
             _listener = new GameObject("Audio Save Listener").AddComponent<AudioSaveListener>();
         }
 
-        public static async Awaitable HandleFileAsync(string path, Options options)
+        public static async Awaitable HandleFileAsync(string path, Config options)
         {
             if (!IsInitialized)
                 Initialize();
@@ -127,6 +127,10 @@ namespace Overture.Export
                 Debug.LogWarning($"Could not delete local file: {e.Message}");
             }
 
+            while (_listener.IsAwaiting)
+                await Awaitable.NextFrameAsync();
+
+            OnPlatformUploadResult(_listener.uploadResultJson);
 #else
             Debug.Log($"DAW EXPORT SAVED (Editor/Standalone): File is at: {path}");
             EditorUtility.RevealInFinder(path);

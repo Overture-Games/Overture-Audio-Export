@@ -7,7 +7,7 @@ namespace Overture.Export
 {
     public partial class AudioExport
     {
-        public struct Options
+        public class Options
         {
             public int TargetSampleRate { get; set; }
             public int TargetChannels { get; set; }
