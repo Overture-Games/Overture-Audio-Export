@@ -74,14 +74,14 @@ namespace Overture.Export
             _listener = new GameObject("Audio Save Listener").AddComponent<AudioSaveListener>();
         }
 
-        public static async Awaitable<PlatformUploadResult> HandleFileAsync(string path, Config config, Action<PlatformUploadResult> callback)
+        public static async Awaitable<PlatformUploadResult> HandleFileAsync(string path, Config config, Action<PlatformUploadResult> callback, string overrideFileName = null)
         {
-            var result = await HandleFileAsync(path, config);
+            var result = await HandleFileAsync(path, config, overrideFileName);
             callback?.Invoke(result);
             return result; 
         }
 
-        public static async Awaitable<PlatformUploadResult> HandleFileAsync(string path, Config config)
+        public static async Awaitable<PlatformUploadResult> HandleFileAsync(string path, Config config, string overrideFileName = null)
         {
             if (!IsInitialized)
                 Initialize();
@@ -102,7 +102,7 @@ namespace Overture.Export
 
             var songData = new Req_SaveData()
             {
-                title = GenerateFileName(config.Title),
+                title = overrideFileName ?? GenerateFileName(config.Title),
                 gameId = config.GameId,
                 tags = config.Tags.Concat(new[] { config.GameId }).ToArray(),
                 bpm = config.Bpm,
