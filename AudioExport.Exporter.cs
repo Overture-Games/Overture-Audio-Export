@@ -31,14 +31,14 @@ namespace Overture.Export
             public string PathOrError { get; set; }
         }
 
-        public static async Awaitable<ExportResult> ToFileAsync(AudioExport export, Action<ExportResult> callback)
+        public static async Awaitable<ExportResult> ToFileAsync(AudioExport export, Action<ExportResult> callback, string overrideFileName = null)
         {
-            var result = await ToFileAsync(export);
+            var result = await ToFileAsync(export, overrideFileName);
             callback?.Invoke(result);
             return result;
         }
 
-        public static async Awaitable<ExportResult> ToFileAsync(AudioExport export)
+        public static async Awaitable<ExportResult> ToFileAsync(AudioExport export, string overrideFileName = null)
         {
             if (export == null)
             {
@@ -59,7 +59,7 @@ namespace Overture.Export
             }
 
             // Build the file path
-            var filePath = Path.Combine(Application.persistentDataPath, GenerateTempFileName());
+            var filePath = Path.Combine(Application.persistentDataPath, overrideFileName ?? GenerateTempFileName());
             Debug.Log($"AudioFileExporter: Preparing to save WAV to: {filePath}");
 
             // Write header + samples in a coroutine
