@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Overture Bridge Test Harness</title>
+    <style>
+        body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+        h1 { color: #7b68ee; }
+        .log { background: #16213e; padding: 10px; border-radius: 5px; margin: 10px 0; max-height: 400px; overflow-y: auto; }
+        .log-entry { margin: 2px 0; padding: 4px; border-left: 3px solid #444; padding-left: 8px; }
+        .log-entry.send { border-color: #4ade80; }
+        .log-entry.recv { border-color: #60a5fa; }
+        .log-entry.error { border-color: #f87171; color: #f87171; }
+        .log-entry.info { border-color: #fbbf24; }
+        button { background: #7b68ee; color: white; border: none; padding: 10px 20px; margin: 5px; cursor: pointer; border-radius: 5px; }
+        button:hover { background: #6a5acd; }
+        .section { margin: 20px 0; padding: 15px; background: #16213e; border-radius: 8px; }
+        .status { display: inline-block; padding: 4px 8px; border-radius: 4px; margin-left: 10px; }
+        .status.ok { background: #166534; }
+        .status.waiting { background: #854d0e; }
+        .status.fail { background: #991b1b; }
+        pre { background: #0f172a; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🎵 Overture Bridge Test Harness</h1>
+    <p>This page simulates the Overture Platform to test the Unity Bridge protocol.</p>
+
+    <div class="section">
+        <h3>Test Controls</h3>
+        <button onclick="simulateHandshake()">1. Simulate Handshake Request</button>
+        <button onclick="simulateSaveSong()">2. Simulate Save Song Request</button>
+        <button onclick="simulateSaveSongFail()">3. Simulate Failed Save</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="section">
+        <h3>Protocol Status</h3>
+        <div>Handshake: <span id="handshake-status" class="status waiting">Not tested</span></div>
+        <div>Save Song: <span id="save-status" class="status waiting">Not tested</span></div>
+    </div>
+
+    <div class="section">
+        <h3>Message Log</h3>
+        <div id="log" class="log"></div>
+    </div>
+
+    <div class="section">
+        <h3>Expected Protocol Flow</h3>
+        <pre>
+HANDSHAKE:
+  Game → Platform: OVERTURE_HANDSHAKE_REQUEST { requestId, payload: { gameId } }
+  Platform → Game: OVERTURE_HANDSHAKE_RESPONSE { requestId, payload: { supported, capabilities, version } }
+
+SAVE SONG:
+  Game → Platform: OVERTURE_SAVE_SONG { requestId, payload: { title, audioData, ... } }
+  Platform → Game: OVERTURE_SAVE_SONG_ACK { requestId }
+  Platform → Game: OVERTURE_SAVE_SONG_PROGRESS { requestId, payload: { percent, stage } }
+  Platform → Game: OVERTURE_SAVE_SONG_PROGRESS { requestId, payload: { percent, stage } }
+  Platform → Game: OVERTURE_SAVE_SONG_RESPONSE { requestId, payload: { success, songId } }
+        </pre>
+    </div>
+
+    <script>
+        const logEl = document.getElementById('log');
+        let messageCount = 0;
+
+        function log(type, message, data) {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toISOString().split('T')[1].slice(0, 12);
+            const prefix = type === 'send' ? '→ SEND' : type === 'recv' ? '← RECV' : type === 'error' ? '✗ ERROR' : 'ℹ INFO';
+            entry.textContent = `[${timestamp}] ${prefix}: ${message}`;
+            if (data) {
+                const dataStr = JSON.stringify(data, null, 2);
+                entry.textContent += '\n' + dataStr;
+            }
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(`[${type.toUpperCase()}]`, message, data || '');
+        }
+
+        function clearLog() {
+            logEl.innerHTML = '';
+            document.getElementById('handshake-status').textContent = 'Not tested';
+            document.getElementById('handshake-status').className = 'status waiting';
+            document.getElementById('save-status').textContent = 'Not tested';
+            document.getElementById('save-status').className = 'status waiting';
+        }
+
+        function setStatus(id, text, ok) {
+            const el = document.getElementById(id);
+            el.textContent = text;
+            el.className = `status ${ok ? 'ok' : 'fail'}`;
+        }
+
+        // Simulate receiving a message from Unity (as if we're the parent window)
+        function sendToGame(message) {
+            log('send', message.type, message);
+            // In real scenario, this would be: gameIframe.contentWindow.postMessage(message, '*')
+            // For testing, we'll just log it
+            window.postMessage(message, '*');
+        }
+
+        // Listen for messages (simulating both sides)
+        window.addEventListener('message', (event) => {
+            const data = event.data;
+            if (!data || typeof data.type !== 'string' || !data.type.startsWith('OVERTURE_')) return;
+
+            log('recv', data.type, data);
+
+            // Simulate platform responses
+            switch (data.type) {
+                case 'OVERTURE_HANDSHAKE_REQUEST':
+                    handleHandshakeRequest(data);
+                    break;
+                case 'OVERTURE_SAVE_SONG':
+                    handleSaveSongRequest(data);
+                    break;
+                case 'OVERTURE_HANDSHAKE_RESPONSE':
+                    log('info', 'Handshake response received by game');
+                    setStatus('handshake-status', 'OK', true);
+                    break;
+                case 'OVERTURE_SAVE_SONG_ACK':
+                    log('info', 'Save acknowledged by game');
+                    break;
+                case 'OVERTURE_SAVE_SONG_PROGRESS':
+                    log('info', `Progress: ${data.payload.percent}% - ${data.payload.stage}`);
+                    break;
+                case 'OVERTURE_SAVE_SONG_RESPONSE':
+                    log('info', `Save complete: ${data.payload.success ? 'SUCCESS' : 'FAILED'}`);
+                    setStatus('save-status', data.payload.success ? 'OK' : 'Failed', data.payload.success);
+                    break;
+            }
+        });
+
+        function handleHandshakeRequest(data) {
+            log('info', 'Processing handshake request...');
+
+            // Respond with handshake
+            setTimeout(() => {
+                sendToGame({
+                    type: 'OVERTURE_HANDSHAKE_RESPONSE',
+                    requestId: data.requestId,
+                    payload: {
+                        supported: true,
+                        capabilities: ['saveSong', 'achievements', 'progress'],
+                        version: '1.0.0'
+                    }
+                });
+            }, 100);
+        }
+
+        let failNextSave = false;
+
+        function handleSaveSongRequest(data) {
+            log('info', 'Processing save song request...');
+            const requestId = data.requestId;
+
+            // ACK immediately
+            setTimeout(() => {
+                sendToGame({
+                    type: 'OVERTURE_SAVE_SONG_ACK',
+                    requestId: requestId
+                });
+            }, 50);
+
+            // Progress updates
+            setTimeout(() => {
+                sendToGame({
+                    type: 'OVERTURE_SAVE_SONG_PROGRESS',
+                    requestId: requestId,
+                    payload: { percent: 10, stage: 'Processing audio data' }
+                });
+            }, 200);
+
+            setTimeout(() => {
+                sendToGame({
+                    type: 'OVERTURE_SAVE_SONG_PROGRESS',
+                    requestId: requestId,
+                    payload: { percent: 30, stage: 'Uploading to storage' }
+                });
+            }, 400);
+
+            setTimeout(() => {
+                sendToGame({
+                    type: 'OVERTURE_SAVE_SONG_PROGRESS',
+                    requestId: requestId,
+                    payload: { percent: 100, stage: 'Complete' }
+                });
+            }, 600);
+
+            // Final response
+            setTimeout(() => {
+                if (failNextSave) {
+                    sendToGame({
+                        type: 'OVERTURE_SAVE_SONG_RESPONSE',
+                        requestId: requestId,
+                        payload: {
+                            success: false,
+                            error: 'Simulated error: Upload failed'
+                        }
+                    });
+                    failNextSave = false;
+                } else {
+                    sendToGame({
+                        type: 'OVERTURE_SAVE_SONG_RESPONSE',
+                        requestId: requestId,
+                        payload: {
+                            success: true,
+                            songId: 'test-song-' + Date.now()
+                        }
+                    });
+                }
+            }, 800);
+        }
+
+        // Test buttons - simulate Unity sending messages
+        function simulateHandshake() {
+            log('info', '=== TESTING HANDSHAKE ===');
+            window.postMessage({
+                type: 'OVERTURE_HANDSHAKE_REQUEST',
+                requestId: 'test-handshake-' + Date.now(),
+                payload: { gameId: 'test-game' }
+            }, '*');
+        }
+
+        function simulateSaveSong() {
+            log('info', '=== TESTING SAVE SONG ===');
+            failNextSave = false;
+            window.postMessage({
+                type: 'OVERTURE_SAVE_SONG',
+                requestId: 'test-save-' + Date.now(),
+                payload: {
+                    title: 'Test Song',
+                    gameId: 'test-game',
+                    audioData: 'base64encodedaudiodata...',
+                    format: 'wav',
+                    duration: 30.5,
+                    sampleRate: 44100,
+                    channels: 2,
+                    fileSize: 1234567,
+                    bpm: 120,
+                    tags: ['test', 'demo'],
+                    description: 'A test song',
+                    isPublic: false
+                }
+            }, '*');
+        }
+
+        function simulateSaveSongFail() {
+            log('info', '=== TESTING SAVE SONG (FAIL) ===');
+            failNextSave = true;
+            window.postMessage({
+                type: 'OVERTURE_SAVE_SONG',
+                requestId: 'test-save-fail-' + Date.now(),
+                payload: {
+                    title: 'Test Song That Will Fail',
+                    gameId: 'test-game',
+                    audioData: 'base64encodedaudiodata...',
+                    format: 'wav'
+                }
+            }, '*');
+        }
+
+        // Auto-run on load
+        log('info', 'Test harness ready. Click buttons to test protocol flow.');
+    </script>
+</body>
+</html>
