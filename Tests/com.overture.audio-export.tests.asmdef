@@ -1,0 +1,16 @@
+{
+    "name": "com.overture.audio-export.tests",
+    "rootNamespace": "Overture.Export.Tests",
+    "references": [
+        "com.overture.audio-export"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
