@@ -1,6 +1,6 @@
-// #if UNITY_WEBGL && !UNITY_EDITOR
+#if UNITY_WEBGL && !UNITY_EDITOR
 #define CAN_EXPORT
-// #endif
+#endif
 
 using UnityEngine;
 using System;
