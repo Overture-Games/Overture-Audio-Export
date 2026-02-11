@@ -6,6 +6,7 @@ var LibraryExportRelay = {
   },
 
   // Initialize the Bridge message listener (call once)
+  OvertureBridge_Init__deps: ['$BridgeState'],
   OvertureBridge_Init: function(gameObjectNamePtr) {
     if (BridgeState.initialized) return;
 
